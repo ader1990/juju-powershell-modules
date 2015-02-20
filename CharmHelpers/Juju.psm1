@@ -51,7 +51,7 @@ function Check-ContextComplete {
     )
 
     foreach ($i in $Ctx.GetEnumerator()) {
-        if (!$i.Value) {
+        if (($i.Value -eq $null) -or ($i.Value.Length -eq 0)) {
             return $false
         }
     }
@@ -352,7 +352,7 @@ function Get-JujuRelationParams {
         [Hashtable]$relationMap
     )
 
-    $ctx = @{ "context" = $true }
+    $ctx = @{ "context" = $false }
     $relations = Get-JujuRelationIds -reltype $type
     foreach($rid in $relations){
         $related_units = Get-JujuRelatedUnits -relid $rid
@@ -529,5 +529,19 @@ function unit_private_ip {
     return Get-JujuUnitPrivateIP
 }
 
+
+function Get-MainNetadapter {
+    $unit_ip = unit_private_ip
+    if (!$unit_ip){
+        Throw "Failed to get unit IP"
+    }
+
+    $ifaceAlias = ( Get-NetIPAddress | Where-Object `
+        { $_.IPAddress -match $unit_ip -and $_.AddressFamily -eq "IPv4"}).InterfaceAlias
+    if (!$ifaceAlias) {
+        Throw "Failed to find primary interface"
+    }
+    return $ifaceAlias
+}
 
 Export-ModuleMember -Function *
