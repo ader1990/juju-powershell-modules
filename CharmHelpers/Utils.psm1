@@ -135,6 +135,33 @@ function Compare-HashTables ($tab1, $tab2) {
     return $true
 }
 
+function MergeLeft-Array {
+    param(
+        [Parameter(Mandatory=$true)]
+        [HashTable]$first,
+        [Parameter(Mandatory=$true)]
+        [HashTable]$second
+        )
+
+    foreach ($key in $second.Keys) {
+        $first[$key] = $second[$key]
+    }
+
+    return $first
+}
+
+function Update-IniEntry {
+    param(
+        $Path,
+        $Name,
+        $Value)
+
+    $content = Get-Content -Path $Path
+    $regex = "{{[\s]{0,}" + $Name + "[\s]{0,}}}"
+    $newContent = $content -Replace $regex,$Value
+    Set-Content -Path $Path -Value $newContent
+}
+
 function Execute-ExternalCommand {
     param(
         [ScriptBlock]$Command,
@@ -204,11 +231,28 @@ function Check-FileIntegrityWithSHA1 {
 }
 
 function Download-File ($DownloadLink, $DestinationFile, $ExpectedSHA1Hash) {
-    $webclient = New-Object System.Net.WebClient
-    ExecuteWith-Retry -Command {
-        $webclient.DownloadFile($DownloadLink, $DestinationFile)
+    $webClient = New-Object System.Net.WebClient
+
+    if ($DestinationFile -eq $null) {
+        $fileName = $DownloadLink.Split('/')[-1]
+        $DestinationFile = "$env:TEMP\" + $filename
     }
-    Check-FileIntegrityWithSHA1 $DestinationFile $ExpectedSHA1Hash
+
+    ExecuteWith-Retry -Command {
+        #It will overwrite any existent file
+        $webClient.DownloadFile($DownloadLink, $DestinationFile)
+    }
+
+    if($ExpectedSHA1Hash) {
+        Check-FileIntegrityWithSHA1 $DestinationFile $ExpectedSHA1Hash
+    }
+
+    $fileExists = Test-Path $DestinationFile
+    if ($fileExists){
+        return $DestinationFile
+    } else {
+        throw "Failed to download file."
+    }
 }
 
 function Remove-DuplicatePaths ($Path) {

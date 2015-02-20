@@ -19,7 +19,50 @@ $modulePath = Resolve-Path "..\utils.psm1"
 Import-Module $modulePath -DisableNameChecking
 
 InModuleScope $moduleName {
-    
+    Describe "Merge Left" {
+        Context "It should succeed" {
+            $first =@{
+                "rabbit_host"="host";
+                "rabbit_password"="pass";
+            }
+
+            $second =@{
+                "rabbit_host"="host_changed";
+                "rabbit_password_1"="pass_1";
+            }
+
+            $expectedResult =@{
+                "rabbit_host"="host_changed";
+                "rabbit_password"="pass";
+                "rabbit_password_1"="pass_1";
+            }
+
+            $result = MergeLeft-Array $first $second
+
+            It "should verify result" {
+                (Compare-HashTables $result $expectedResult)| Should Be $true
+            }
+        }
+    }
+
+    Describe "Update-IniEntry" {
+        Context "It should succeed" {
+            $fakeContent = "fakeContent"
+            $fakePath = "fakePath"
+            $fakeName = "fakeName"
+            $fakeValue = "fakeValue"
+
+            Mock Get-Content { return $fakeContent } -Verifiable
+            Mock Set-Content { return } -Verifiable
+
+            $result = Update-IniEntry $fakePath $fakeName $fakeValue
+
+            It "should verify all methods are called" {
+                    Assert-VerifiableMocks
+                }
+            }
+    }
+
 }
 
 Remove-Module $moduleName
