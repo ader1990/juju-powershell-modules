@@ -17,6 +17,7 @@
 $utilsModulePath = Join-Path $PSScriptRoot "utils.psm1"
 Import-Module -Force -DisableNameChecking $utilsModulePath
 
+
 $SourcePolicy = @"
 /*
 Original sources available at: https://bitbucket.org/splatteredbits/carbon
@@ -644,6 +645,48 @@ namespace PSCloudbase
 "@
 Add-Type -TypeDefinition $Source -Language CSharp
 
+<#
+
+.SYNOPSIS
+
+Starts a process under a user defined by the credentials given as a parameter.
+This command is similar to Linux "su", making possible to run a command under
+different Windows users, for example a user which is a domain administrator.
+
+.DESCRIPTION
+
+It uses a wrapper of advapi32.dll functionality,
+[PSCloudbase.ProcessManager]::RunProcess, which is defined as native C++ code
+in the same file.
+
+.PARAMETER Command
+
+The executable file path.
+
+.PARAMETER Arguments
+
+The arguments that will be sent to the process.
+
+.PARAMETER Credential
+
+The credential under which the newly spawned process will run. A credential can
+be created by instantiating System.Management.Automation.PSCredential class.
+
+.PARAMETER LoadUserProfile
+
+Whether to load the user profile in case the process needs it.
+
+.EXAMPLE
+
+$exitCode = Start-ProcessAsUser -Command "$PShome\powershell.exe" -Arguments @("script.ps1", "arg1", "arg2") -Credential $credential
+
+.Notes
+
+The user under which this command is run must have the appropriate privilleges
+and to be a local administrator in order to be able to execute the command
+successfully.
+
+#>
 function Start-ProcessAsUser
 {
     [CmdletBinding()]
@@ -679,12 +722,45 @@ function Start-ProcessAsUser
     }
 }
 
+<#
+
+.SYNOPSIS
+
+Sets the necessary user privilleges in order for a user to be able to initiate
+processes that execute under another user, to logon as a service and to be able
+to have full control over the operating system.
+
+.DESCRIPTION
+
+This method uses the Carbon PowerShell library to assign a set of account
+rights constants to a user.
+
+.PARAMETER Username
+
+The username to which the rights will will be assigned to.
+
+.EXAMPLE
+
+Set-UserRunAsRights "Administrator"
+
+
+.EXAMPLE
+
+Set-UserRunAsRights "domainName\Administrator"
+
+.Notes
+
+The user under which this command is run must have the appropriate privilleges
+and to be a local administrator in order to be able to execute the command
+successfully.
+
+#>
 function Set-UserRunAsRights {
     Param
     (
         [Parameter(Mandatory=$true)]
         [String]
-        $UserName
+        $Username
     )
 
     $privileges = @()
@@ -721,7 +797,6 @@ function Set-UserRunAsRights {
 
     return ($allPrivillegesInstalled -eq $allPrivillegesCount)
 }
-
 
 function Get-RandomPassword
 {
@@ -764,6 +839,31 @@ function Get-RandomPassword
         }
     }
 }
+
+<#
+
+.SYNOPSIS
+
+Generates a strong password, appropriate for a Windows user account. The
+password must pass the password policy requirements:
+https://technet.microsoft.com/en-us/library/hh994572%28WS.10%29.aspx
+
+.DESCRIPTION
+
+In order to respect the password policy requirements, the generated pasword has
+16 characters and is constructed using advapi.dll's CryptGenRandom.
+
+.EXAMPLE
+
+$password = Generate-StrongPassword
+
+.Notes
+
+The user under which this command is run must have the appropriate privilleges
+and to be a local administrator in order to be able to execute the command
+successfully.
+
+#>
 
 function Generate-StrongPassword {
     $password = (Get-RandomPassword 15) + "^"
